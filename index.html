@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Type units — relative converter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ========================================
+       CSS Custom Properties
+       ======================================== */
+    :root {
+      --base: oklch(0.18 0.012 70);
+      --neutral: oklch(0.94 0.012 80);
+      --primary: oklch(0.82 0.16 75);
+      --secondary: oklch(0.55 0.02 70);
+      --accent: oklch(0.88 0.1 78);
+
+      --h1: 2.6rem;
+      --text-xs: 0.78rem;
+      --text-s: 0.9rem;
+      --text-m: 1.05rem;
+      --text-l: 1.4rem;
+      --text-xl: 2rem;
+
+      --heading-font-family: "Fraunces", Georgia, serif;
+      --text-font-family: "IBM Plex Mono", ui-monospace, monospace;
+
+      --space-xs: 0.4rem;
+      --space-s: 0.75rem;
+      --space-m: 1.25rem;
+      --space-l: 2rem;
+      --space-xl: 3rem;
+
+      --content-width: 44rem;
+      --radius: 0.6rem;
+      --transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+      --focus-width: 2px;
+      --focus-offset: 2px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--text-font-family);
+      line-height: 1.6;
+      color: var(--neutral);
+      background:
+        radial-gradient(120% 80% at 80% -10%, oklch(from var(--primary) l c h / 0.12), transparent 60%),
+        var(--base);
+      min-height: 100dvh;
+      display: grid;
+      place-items: start center;
+      padding: var(--space-l) var(--space-m) var(--space-xl);
+    }
+
+    h1, h2 { font-family: var(--heading-font-family); font-weight: 600; }
+
+    /* ========================================
+       App shell
+       ======================================== */
+    .app {
+      width: 100%;
+      max-width: var(--content-width);
+      container-type: inline-size;
+      container-name: app;
+    }
+
+    .app__header { margin-block-end: var(--space-l); }
+
+    .app__eyebrow {
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.25em;
+      color: var(--primary);
+    }
+
+    .app__title {
+      font-size: var(--h1);
+      line-height: 1.05;
+      margin-block: var(--space-xs) var(--space-s);
+      font-style: italic;
+    }
+
+    .app__lede {
+      font-size: var(--text-s);
+      color: var(--secondary);
+      max-width: 42ch;
+    }
+
+    /* --- Global settings (root size + viewports) --- */
+    .settings {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-s) var(--space-l);
+      margin-block-start: var(--space-m);
+      padding: var(--space-s) var(--space-m);
+      border: 1px solid oklch(from var(--neutral) l c h / 0.12);
+      border-radius: var(--radius);
+      background: oklch(from var(--neutral) l c h / 0.03);
+    }
+
+    .settings__item {
+      display: inline-flex;
+      align-items: baseline;
+      gap: var(--space-xs);
+    }
+
+    .settings__label {
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--secondary);
+    }
+
+    .settings__field {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 2px;
+      border-bottom: 2px solid oklch(from var(--neutral) l c h / 0.18);
+      transition: border-color var(--transition);
+
+      &:focus-within { border-color: var(--primary); }
+    }
+
+    .settings__input {
+      width: 3.5em;
+      font-family: var(--text-font-family);
+      font-size: var(--text-m);
+      font-weight: 500;
+      color: var(--neutral);
+      background: none;
+      border: none;
+      padding-block: 2px;
+
+      &:focus { outline: none; }
+      &::-webkit-outer-spin-button,
+      &::-webkit-inner-spin-button { opacity: 0.3; }
+    }
+
+    .settings__unit { font-size: var(--text-s); color: var(--secondary); }
+    .settings__sep { font-size: var(--text-s); color: var(--secondary); }
+
+    /* ========================================
+       Tabs (ARIA tablist pattern)
+       ======================================== */
+    .tabs__list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+      margin-block-end: var(--space-m);
+      border-bottom: 1px solid oklch(from var(--neutral) l c h / 0.12);
+    }
+
+    .tabs__tab {
+      font-family: var(--text-font-family);
+      font-size: var(--text-s);
+      color: var(--secondary);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: var(--space-s) var(--space-m);
+      margin-bottom: -1px;
+      cursor: pointer;
+      transition: color var(--transition), border-color var(--transition);
+
+      &:hover { color: var(--neutral); }
+      &:focus-visible {
+        outline: var(--focus-width) solid var(--primary);
+        outline-offset: var(--focus-offset);
+        border-radius: 4px;
+      }
+    }
+
+    .tabs__tab[aria-selected="true"] {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tabs__panel[hidden] { display: none; }
+
+    /* ========================================
+       Controls
+       ======================================== */
+    .controls {
+      display: grid;
+      gap: var(--space-m);
+      padding: var(--space-m);
+      border: 1px solid oklch(from var(--neutral) l c h / 0.12);
+      border-radius: var(--radius);
+      background: oklch(from var(--neutral) l c h / 0.03);
+
+      @container app (min-width: 32rem) {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    .controls[hidden] { display: none; }
+    .controls + .controls { margin-block-start: var(--space-s); }
+
+    .field { display: grid; gap: var(--space-xs); }
+    .field[hidden] { display: none; }
+
+    .field__label {
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--secondary);
+    }
+
+    .field__input-row {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-xs);
+      border-bottom: 2px solid oklch(from var(--neutral) l c h / 0.18);
+      transition: border-color var(--transition);
+
+      &:focus-within { border-color: var(--primary); }
+    }
+
+    .field__input {
+      flex: 1;
+      width: 100%;
+      min-width: 0;
+      font-family: var(--text-font-family);
+      font-size: var(--text-xl);
+      font-weight: 500;
+      color: var(--neutral);
+      background: none;
+      border: none;
+      padding-block: var(--space-xs);
+
+      &:focus { outline: none; }
+      &::-webkit-outer-spin-button,
+      &::-webkit-inner-spin-button { opacity: 0.3; }
+    }
+
+    .field__unit { font-size: var(--text-m); color: var(--secondary); }
+
+    .field__select {
+      font-family: var(--text-font-family);
+      font-size: var(--text-l);
+      font-weight: 500;
+      color: var(--neutral);
+      background: oklch(from var(--neutral) l c h / 0.04);
+      border: none;
+      border-bottom: 2px solid oklch(from var(--neutral) l c h / 0.18);
+      padding: var(--space-xs);
+      cursor: pointer;
+      transition: border-color var(--transition);
+
+      &:focus-visible { outline: none; border-color: var(--primary); }
+    }
+    .field__select option { background: var(--base); color: var(--neutral); }
+
+    .field__hint { font-size: var(--text-xs); color: var(--secondary); }
+
+    .field__input--name { font-size: var(--text-m); }
+
+    /* --- CSS variables output --- */
+    .vars {
+      margin-block-start: var(--space-m);
+      display: grid;
+      gap: var(--space-m);
+    }
+    .vars[hidden] { display: none; }
+
+    .vars__output { display: grid; gap: var(--space-s); }
+
+    .vars__code {
+      margin: 0;
+      font-family: var(--text-font-family);
+      font-size: var(--text-s);
+      color: var(--accent);
+      background: oklch(from var(--neutral) l c h / 0.05);
+      border: 1px solid oklch(from var(--neutral) l c h / 0.12);
+      border-radius: var(--radius);
+      padding: var(--space-m);
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-x: auto;
+    }
+
+    .vars__output .copy-btn { justify-self: start; }
+
+    /* --- Toggle button (add line-height clamp) --- */
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      margin-block-start: var(--space-m);
+      font-family: var(--text-font-family);
+      font-size: var(--text-s);
+      font-weight: 500;
+      color: var(--primary);
+      background: none;
+      border: 1px dashed oklch(from var(--primary) l c h / 0.4);
+      border-radius: var(--radius);
+      padding: var(--space-s) var(--space-m);
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition);
+
+      &:hover { background: oklch(from var(--primary) l c h / 0.08); }
+      &:focus-visible {
+        outline: var(--focus-width) solid var(--primary);
+        outline-offset: var(--focus-offset);
+      }
+    }
+
+    .toggle__icon {
+      font-size: var(--text-m);
+      line-height: 1;
+      transition: transform var(--transition);
+    }
+    .toggle[aria-pressed="true"] {
+      border-style: solid;
+      background: oklch(from var(--primary) l c h / 0.1);
+      margin-block-end: var(--space-m);
+    }
+    .toggle[aria-pressed="true"] .toggle__icon { transform: rotate(45deg); }
+
+    /* --- Result --- */
+    .result {
+      margin-block-start: var(--space-m);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-m);
+      padding: var(--space-m);
+      border-radius: var(--radius);
+      background: oklch(from var(--primary) l c h / 0.1);
+      border: 1px solid oklch(from var(--primary) l c h / 0.3);
+    }
+    .result[hidden] { display: none; }
+
+    .result__group { display: grid; gap: 2px; flex: 1 1 18rem; }
+
+    .result__label {
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: oklch(from var(--primary) 0.7 c h);
+    }
+
+    .result__value {
+      font-family: var(--heading-font-family);
+      font-size: var(--text-xl);
+      font-weight: 600;
+      color: var(--primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result__value--clamp {
+      font-family: var(--text-font-family);
+      font-size: var(--text-m);
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .result__sub { font-size: var(--text-xs); color: var(--secondary); }
+
+    .copy-btn {
+      font-family: var(--text-font-family);
+      font-size: var(--text-s);
+      font-weight: 500;
+      color: var(--base);
+      background: var(--primary);
+      border: none;
+      border-radius: var(--radius);
+      padding: var(--space-s) var(--space-m);
+      cursor: pointer;
+      transition: transform var(--transition), background var(--transition);
+
+      &:hover { background: var(--accent); }
+      &:active { transform: scale(0.97); }
+      &:focus-visible {
+        outline: var(--focus-width) solid var(--neutral);
+        outline-offset: var(--focus-offset);
+      }
+      &.copy-btn--copied { background: oklch(0.78 0.15 150); }
+    }
+
+    /* --- Preview --- */
+    .preview { margin-block-start: var(--space-l); }
+
+    .preview__head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-s);
+      margin-block-end: var(--space-s);
+    }
+
+    .preview__label {
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--secondary);
+    }
+
+    .preview__note { font-size: var(--text-xs); color: var(--secondary); }
+
+    .preview__text {
+      font-family: var(--heading-font-family);
+      color: var(--neutral);
+      padding: var(--space-m);
+      border: 1px dashed oklch(from var(--neutral) l c h / 0.18);
+      border-radius: var(--radius);
+
+      &:focus-visible {
+        outline: var(--focus-width) solid var(--primary);
+        outline-offset: var(--focus-offset);
+      }
+    }
+
+    .footnote {
+      margin-block-start: var(--space-l);
+      font-size: var(--text-xs);
+      color: var(--secondary);
+      line-height: 1.7;
+    }
+    .footnote code {
+      color: var(--accent);
+      background: oklch(from var(--neutral) l c h / 0.06);
+      padding: 0 0.3em;
+      border-radius: 3px;
+    }
+
+    .visually-hidden {
+      position: absolute; width: 1px; height: 1px;
+      overflow: hidden; clip: rect(0 0 0 0);
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="app__header">
+      <p class="app__eyebrow">Type tools</p>
+      <h1 class="app__title">Relative unit converter</h1>
+      <p class="app__lede">Turn pixel and percentage type values into font-relative units that scale with the text.</p>
+
+      <div class="settings">
+        <span class="settings__item">
+          <label class="settings__label" for="root-size">1rem =</label>
+          <span class="settings__field">
+            <input class="settings__input" id="root-size" type="number" value="16" step="1" min="1" inputmode="decimal">
+            <span class="settings__unit">px</span>
+          </span>
+        </span>
+        <span class="settings__item">
+          <span class="settings__label">Viewport</span>
+          <span class="settings__field">
+            <input class="settings__input" id="vw-min" type="number" value="360" step="10" min="1" inputmode="decimal" aria-label="Minimum viewport">
+            <span class="settings__unit">px</span>
+          </span>
+          <span class="settings__sep">to</span>
+          <span class="settings__field">
+            <input class="settings__input" id="vw-max" type="number" value="1280" step="10" min="1" inputmode="decimal" aria-label="Maximum viewport">
+            <span class="settings__unit">px</span>
+          </span>
+        </span>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <div class="tabs__list" role="tablist" aria-label="Converters">
+        <button class="tabs__tab" role="tab" id="tab-cl" aria-selected="true" aria-controls="panel-cl" type="button">Fluid clamp</button>
+        <button class="tabs__tab" role="tab" id="tab-ls" aria-selected="false" aria-controls="panel-ls" tabindex="-1" type="button">Letter spacing</button>
+        <button class="tabs__tab" role="tab" id="tab-lh" aria-selected="false" aria-controls="panel-lh" tabindex="-1" type="button">Line height</button>
+      </div>
+
+      <!-- ============ Fluid clamp (font-size + optional line-height) ============ -->
+      <section class="tabs__panel" role="tabpanel" id="panel-cl" aria-labelledby="tab-cl" tabindex="0">
+        <div class="controls" aria-label="Font size inputs">
+          <div class="field">
+            <label class="field__label" for="cl-min-size">Min font size</label>
+            <div class="field__input-row">
+              <input class="field__input" id="cl-min-size" type="number" value="18" step="0.5" min="0" inputmode="decimal">
+              <span class="field__unit">px</span>
+            </div>
+            <p class="field__hint">Size at the smallest viewport.</p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="cl-max-size">Max font size</label>
+            <div class="field__input-row">
+              <input class="field__input" id="cl-max-size" type="number" value="28" step="0.5" min="0" inputmode="decimal">
+              <span class="field__unit">px</span>
+            </div>
+            <p class="field__hint">Size at the largest viewport.</p>
+          </div>
+        </div>
+
+        <button class="toggle" id="lh-toggle" type="button" aria-pressed="false" aria-expanded="false" aria-controls="lh-inputs lh-result">
+          <span class="toggle__icon" aria-hidden="true">+</span>
+          <span class="toggle__text">Add line-height clamp</span>
+        </button>
+
+        <div class="controls" id="lh-inputs" aria-label="Line-height inputs" hidden>
+          <div class="field">
+            <label class="field__label" for="cl-min-lh">Min line-height</label>
+            <div class="field__input-row">
+              <input class="field__input" id="cl-min-lh" type="number" value="1.5" step="0.05" min="0" inputmode="decimal">
+              <span class="field__unit">×</span>
+            </div>
+            <p class="field__hint">Ratio at the smallest viewport.</p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="cl-max-lh">Max line-height</label>
+            <div class="field__input-row">
+              <input class="field__input" id="cl-max-lh" type="number" value="1.3" step="0.05" min="0" inputmode="decimal">
+              <span class="field__unit">×</span>
+            </div>
+            <p class="field__hint">Ratio at the largest viewport.</p>
+          </div>
+        </div>
+
+        <div class="result" aria-live="polite">
+          <div class="result__group">
+            <span class="result__label">font-size</span>
+            <span class="result__value result__value--clamp" id="cl-output">clamp(...)</span>
+            <span class="result__sub" id="cl-sub"></span>
+          </div>
+          <button class="copy-btn" type="button" data-copy="cl">Copy</button>
+        </div>
+
+        <div class="result" id="lh-result" aria-live="polite" hidden>
+          <div class="result__group">
+            <span class="result__label">line-height</span>
+            <span class="result__value result__value--clamp" id="lhc-output">clamp(...)</span>
+            <span class="result__sub" id="lhc-sub"></span>
+          </div>
+          <button class="copy-btn" type="button" data-copy="lhc">Copy</button>
+        </div>
+
+        <button class="toggle" id="vars-toggle" type="button" aria-pressed="false" aria-expanded="false" aria-controls="vars-area">
+          <span class="toggle__icon" aria-hidden="true">+</span>
+          <span class="toggle__text">Output as CSS variables</span>
+        </button>
+
+        <div class="vars" id="vars-area" hidden>
+          <div class="field">
+            <label class="field__label" for="vars-name">Variable name</label>
+            <div class="field__input-row">
+              <input class="field__input field__input--name" id="vars-name" type="text" value="{min}px-to-{max}px" spellcheck="false" autocomplete="off">
+            </div>
+            <p class="field__hint">Use <code>{min}</code> and <code>{max}</code> as placeholders for the font sizes. Line-height gets a <code>-line-height</code> suffix.</p>
+          </div>
+          <div class="vars__output">
+            <pre class="vars__code"><code id="vars-code">--18px-to-28px: ...;</code></pre>
+            <button class="copy-btn" type="button" data-copy="vars">Copy variables</button>
+          </div>
+        </div>
+
+        <div class="preview">
+          <div class="preview__head">
+            <h2 class="preview__label">Live preview <span class="visually-hidden">(editable)</span></h2>
+            <span class="preview__note">resize the window to see it scale</span>
+          </div>
+          <p class="preview__text" id="cl-preview" contenteditable="true" spellcheck="false">Fluid type flexes with the viewport. Edit this paragraph and drag the window wider or narrower to watch the size, and the leading once enabled, respond across these wrapped lines.</p>
+        </div>
+
+        <p class="footnote">
+          font-size uses <code>clamp(min, preferred, max)</code> with sizes in <code>rem</code> and the slope in <code>vw</code>, so it stays zoom-friendly. Line-height resolves to a <code>rem</code> length (ratio × font size at each end), because unitless line-height can’t live inside <code>clamp()</code>. Both share the viewport range and root size set above.
+        </p>
+      </section>
+
+      <!-- ============ Letter spacing ============ -->
+      <section class="tabs__panel" role="tabpanel" id="panel-ls" aria-labelledby="tab-ls" tabindex="0" hidden>
+        <div class="controls" aria-label="Letter spacing inputs">
+          <div class="field">
+            <label class="field__label" for="ls-value">Letter spacing</label>
+            <div class="field__input-row">
+              <input class="field__input" id="ls-value" type="number" value="-0.5" step="0.05" inputmode="decimal">
+              <span class="field__unit">px</span>
+            </div>
+            <p class="field__hint">The value you’re converting from.</p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="ls-fontsize">Applied at font size</label>
+            <div class="field__input-row">
+              <input class="field__input" id="ls-fontsize" type="number" value="18" step="1" min="1" inputmode="decimal">
+              <span class="field__unit">px</span>
+            </div>
+            <p class="field__hint">The size where this spacing is used.</p>
+          </div>
+        </div>
+
+        <div class="result" aria-live="polite">
+          <div class="result__group">
+            <span class="result__label">Result (em)</span>
+            <span class="result__value" id="ls-output">-0.0278em</span>
+            <span class="result__sub" id="ls-sub"></span>
+          </div>
+          <button class="copy-btn" type="button" data-copy="ls">Copy</button>
+        </div>
+
+        <div class="preview">
+          <div class="preview__head">
+            <h2 class="preview__label">Live preview <span class="visually-hidden">(editable)</span></h2>
+            <span class="preview__note">click text to edit</span>
+          </div>
+          <p class="preview__text" id="ls-preview" contenteditable="true" spellcheck="false">Typography that breathes</p>
+        </div>
+
+        <p class="footnote">
+          <code>em = px ÷ font-size</code>. Prefer <code>em</code> over <code>rem</code> for tracking so it scales with the element’s own size. <code>letter-spacing</code> has no truly unitless value, so <code>em</code> is the relative unit.
+        </p>
+      </section>
+
+      <!-- ============ Line height (unitless) ============ -->
+      <section class="tabs__panel" role="tabpanel" id="panel-lh" aria-labelledby="tab-lh" tabindex="0" hidden>
+        <div class="controls" aria-label="Line height inputs">
+          <div class="field">
+            <label class="field__label" for="lh-value">Line height</label>
+            <div class="field__input-row">
+              <input class="field__input" id="lh-value" type="number" value="107.407" step="0.001" inputmode="decimal">
+            </div>
+            <p class="field__hint">The value you’re converting from.</p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="lh-unit">From unit</label>
+            <select class="field__select" id="lh-unit">
+              <option value="percent" selected>% (percentage)</option>
+              <option value="px">px (with font size)</option>
+            </select>
+            <p class="field__hint">% divides by 100; px divides by the font size.</p>
+          </div>
+
+          <div class="field" id="lh-fontsize-field" hidden>
+            <label class="field__label" for="lh-fontsize">At font size</label>
+            <div class="field__input-row">
+              <input class="field__input" id="lh-fontsize" type="number" value="18" step="1" min="1" inputmode="decimal">
+              <span class="field__unit">px</span>
+            </div>
+            <p class="field__hint">Only needed when converting from px.</p>
+          </div>
+        </div>
+
+        <div class="result" aria-live="polite">
+          <div class="result__group">
+            <span class="result__label">Result (unitless)</span>
+            <span class="result__value" id="lhu-output">1.0741</span>
+            <span class="result__sub" id="lhu-sub"></span>
+          </div>
+          <button class="copy-btn" type="button" data-copy="lhu">Copy</button>
+        </div>
+
+        <div class="preview">
+          <div class="preview__head">
+            <h2 class="preview__label">Live preview <span class="visually-hidden">(editable)</span></h2>
+            <span class="preview__note">click text to edit</span>
+          </div>
+          <p class="preview__text" id="lhu-preview" contenteditable="true" spellcheck="false" style="font-size: 1.05rem;">Leading sets the rhythm between lines. Edit this paragraph and watch the spacing open up or tighten as the unitless value changes across multiple wrapped lines of running text.</p>
+        </div>
+
+        <p class="footnote">
+          <code>unitless = % ÷ 100</code>, or <code>px ÷ font-size</code>. A unitless <code>line-height</code> is the multiplier of each element’s own font size, the recommended default, since child elements inherit the ratio rather than a fixed value.
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    /* ---------- helpers ---------- */
+    let ROOT = 16;
+    const fmt = (n) => parseFloat(n.toFixed(4)).toString();
+
+    const rootInput = document.getElementById("root-size");
+    const vwMin = document.getElementById("vw-min");
+    const vwMax = document.getElementById("vw-max");
+
+    /* persistence (degrades gracefully if storage is blocked) */
+    const STORE_KEY = "type-unit-converter:v2";
+    function saveState() {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify({
+          root: rootInput.value,
+          vwMin: vwMin.value,
+          vwMax: vwMax.value,
+          lhOn: lhOn,
+          varsOn: varsOn,
+          varName: document.getElementById("vars-name").value,
+        }));
+      } catch (e) { /* storage unavailable, skip */ }
+    }
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+
+    const copyValues = { cl: "", lhc: "", ls: "", lhu: "", vars: "" };
+
+    async function writeClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (e) {
+        const t = document.createElement("textarea");
+        t.value = text; document.body.appendChild(t);
+        t.select(); document.execCommand("copy"); t.remove();
+      }
+    }
+
+    document.querySelectorAll(".copy-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await writeClipboard(copyValues[btn.dataset.copy] || "");
+        const original = btn.textContent;
+        btn.textContent = "Copied ✓";
+        btn.classList.add("copy-btn--copied");
+        setTimeout(() => {
+          btn.textContent = original;
+          btn.classList.remove("copy-btn--copied");
+        }, 1400);
+      });
+    });
+
+    /* build a fluid clamp() from two px endpoints using global viewports + root */
+    function buildClamp(minPx, maxPx) {
+      const minVw = parseFloat(vwMin.value);
+      const maxVw = parseFloat(vwMax.value);
+      if ([minPx, maxPx, minVw, maxVw].some(isNaN) || minVw === maxVw) return null;
+
+      const a = minPx / ROOT, b = maxPx / ROOT;
+      const va = minVw / ROOT, vb = maxVw / ROOT;
+      const slope = (b - a) / (vb - va);
+      const intersect = a - slope * va;
+      const slopeVw = slope * 100;
+
+      const lower = `${fmt(Math.min(a, b))}rem`;
+      const upper = `${fmt(Math.max(a, b))}rem`;
+      return `clamp(${lower}, ${fmt(intersect)}rem + ${fmt(slopeVw)}vw, ${upper})`;
+    }
+
+    /* ---------- fluid clamp (font-size + optional line-height) ---------- */
+    const clMinSize = document.getElementById("cl-min-size");
+    const clMaxSize = document.getElementById("cl-max-size");
+    const clMinLh = document.getElementById("cl-min-lh");
+    const clMaxLh = document.getElementById("cl-max-lh");
+    const clOutput = document.getElementById("cl-output");
+    const clSub = document.getElementById("cl-sub");
+    const lhcOutput = document.getElementById("lhc-output");
+    const lhcSub = document.getElementById("lhc-sub");
+    const clPreview = document.getElementById("cl-preview");
+    const lhToggle = document.getElementById("lh-toggle");
+    const lhInputs = document.getElementById("lh-inputs");
+    const lhResult = document.getElementById("lh-result");
+
+    let lhOn = false;
+
+    function updateClamp() {
+      const minFs = parseFloat(clMinSize.value);
+      const maxFs = parseFloat(clMaxSize.value);
+
+      const fontClamp = buildClamp(minFs, maxFs);
+      if (!fontClamp) {
+        clOutput.textContent = "—";
+        clSub.textContent = "check font sizes and viewport range";
+        clPreview.style.removeProperty("font-size");
+      } else {
+        clOutput.textContent = fontClamp;
+        clSub.textContent = `${fmt(minFs)}px → ${fmt(maxFs)}px`;
+        copyValues.cl = fontClamp;
+        clPreview.style.fontSize = fontClamp;
+      }
+
+      if (lhOn) {
+        const minLh = parseFloat(clMinLh.value);
+        const maxLh = parseFloat(clMaxLh.value);
+        const minLhPx = minLh * minFs;
+        const maxLhPx = maxLh * maxFs;
+        const lhClamp = (isNaN(minLh) || isNaN(maxLh)) ? null : buildClamp(minLhPx, maxLhPx);
+
+        if (!lhClamp) {
+          lhcOutput.textContent = "—";
+          lhcSub.textContent = "check line-height ratios";
+          clPreview.style.removeProperty("line-height");
+        } else {
+          lhcOutput.textContent = lhClamp;
+          lhcSub.textContent = `${fmt(minLhPx)}px → ${fmt(maxLhPx)}px leading`;
+          copyValues.lhc = lhClamp;
+          clPreview.style.lineHeight = lhClamp;
+        }
+      } else {
+        clPreview.style.removeProperty("line-height");
+      }
+
+      updateVars();
+    }
+
+    function setLhOn(on) {
+      lhOn = on;
+      lhToggle.setAttribute("aria-pressed", String(on));
+      lhToggle.setAttribute("aria-expanded", String(on));
+      lhInputs.hidden = !on;
+      lhResult.hidden = !on;
+      lhToggle.querySelector(".toggle__text").textContent =
+        on ? "Remove line-height clamp" : "Add line-height clamp";
+      updateClamp();
+    }
+
+    lhToggle.addEventListener("click", () => { setLhOn(!lhOn); saveState(); });
+    [clMinSize, clMaxSize, clMinLh, clMaxLh].forEach((el) =>
+      el.addEventListener("input", updateClamp)
+    );
+
+    /* ---------- CSS variables output ---------- */
+    const varsToggle = document.getElementById("vars-toggle");
+    const varsArea = document.getElementById("vars-area");
+    const varsName = document.getElementById("vars-name");
+    const varsCode = document.getElementById("vars-code");
+
+    let varsOn = false;
+
+    function buildVarName() {
+      const min = clMinSize.value.trim();
+      const max = clMaxSize.value.trim();
+      let name = (varsName.value || "").trim() || "fluid-size";
+      name = name.replace(/\{min\}/g, min).replace(/\{max\}/g, max);
+      // keep it a sane custom-property ident: spaces to dashes, drop unsafe chars
+      name = name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9\-_]/g, "");
+      return name || "fluid-size";
+    }
+
+    function updateVars() {
+      const name = buildVarName();
+      const fontValid = clOutput.textContent.startsWith("clamp");
+      let text;
+      if (!fontValid) {
+        text = "/* enter valid font sizes and viewport range */";
+      } else {
+        const lines = [`--${name}: ${copyValues.cl};`];
+        if (lhOn && lhcOutput.textContent.startsWith("clamp")) {
+          lines.push(`--${name}-line-height: ${copyValues.lhc};`);
+        }
+        text = lines.join("\n");
+      }
+      varsCode.textContent = text;
+      copyValues.vars = text;
+    }
+
+    function setVarsOn(on) {
+      varsOn = on;
+      varsToggle.setAttribute("aria-pressed", String(on));
+      varsToggle.setAttribute("aria-expanded", String(on));
+      varsArea.hidden = !on;
+      varsToggle.querySelector(".toggle__text").textContent =
+        on ? "Hide CSS variables" : "Output as CSS variables";
+      updateVars();
+    }
+
+    varsToggle.addEventListener("click", () => { setVarsOn(!varsOn); saveState(); });
+    varsName.addEventListener("input", () => { updateVars(); saveState(); });
+
+    /* ---------- letter spacing ---------- */
+    const lsValue = document.getElementById("ls-value");
+    const lsFontSize = document.getElementById("ls-fontsize");
+    const lsOutput = document.getElementById("ls-output");
+    const lsSub = document.getElementById("ls-sub");
+    const lsPreview = document.getElementById("ls-preview");
+
+    function updateLS() {
+      const px = parseFloat(lsValue.value);
+      const fs = parseFloat(lsFontSize.value);
+      if (isNaN(px) || isNaN(fs) || fs <= 0) {
+        lsOutput.textContent = "—";
+        lsSub.textContent = "enter valid numbers";
+        return;
+      }
+      const em = px / fs;
+      const emStr = `${fmt(em)}em`;
+      lsOutput.textContent = emStr;
+      lsSub.textContent = `or ${fmt(px / ROOT)}rem at a ${fmt(ROOT)}px root`;
+      copyValues.ls = emStr;
+      lsPreview.style.fontSize = `${fs}px`;
+      lsPreview.style.letterSpacing = emStr;
+    }
+    lsValue.addEventListener("input", updateLS);
+    lsFontSize.addEventListener("input", updateLS);
+
+    /* ---------- line height (unitless) ---------- */
+    const lhuValue = document.getElementById("lh-value");
+    const lhuUnit = document.getElementById("lh-unit");
+    const lhuFontSizeField = document.getElementById("lh-fontsize-field");
+    const lhuFontSize = document.getElementById("lh-fontsize");
+    const lhuOutput = document.getElementById("lhu-output");
+    const lhuSub = document.getElementById("lhu-sub");
+    const lhuPreview = document.getElementById("lhu-preview");
+
+    function updateLHU() {
+      const v = parseFloat(lhuValue.value);
+      const usePx = lhuUnit.value === "px";
+      lhuFontSizeField.hidden = !usePx;
+
+      if (isNaN(v)) {
+        lhuOutput.textContent = "—";
+        lhuSub.textContent = "enter a valid number";
+        return;
+      }
+
+      let unitless, sub;
+      if (usePx) {
+        const fs = parseFloat(lhuFontSize.value);
+        if (isNaN(fs) || fs <= 0) {
+          lhuOutput.textContent = "—";
+          lhuSub.textContent = "enter a valid font size";
+          return;
+        }
+        unitless = v / fs;
+        sub = `${fmt(v)}px ÷ ${fmt(fs)}px`;
+      } else {
+        unitless = v / 100;
+        sub = `${fmt(v)}% ÷ 100`;
+      }
+
+      const out = fmt(unitless);
+      lhuOutput.textContent = out;
+      lhuSub.textContent = sub;
+      copyValues.lhu = out;
+      lhuPreview.style.lineHeight = out;
+    }
+    lhuValue.addEventListener("input", updateLHU);
+    lhuUnit.addEventListener("change", updateLHU);
+    lhuFontSize.addEventListener("input", updateLHU);
+
+    /* ---------- global settings ---------- */
+    rootInput.addEventListener("input", () => {
+      ROOT = parseFloat(rootInput.value) || 16;
+      updateLS();
+      updateClamp();
+      saveState();
+    });
+    [vwMin, vwMax].forEach((el) =>
+      el.addEventListener("input", () => { updateClamp(); saveState(); })
+    );
+
+    /* ---------- tabs (ARIA pattern + arrow keys) ---------- */
+    const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+    function selectTab(tab) {
+      tabs.forEach((t) => {
+        const selected = t === tab;
+        t.setAttribute("aria-selected", String(selected));
+        t.tabIndex = selected ? 0 : -1;
+        document.getElementById(t.getAttribute("aria-controls")).hidden = !selected;
+      });
+    }
+    tabs.forEach((tab, i) => {
+      tab.addEventListener("click", () => selectTab(tab));
+      tab.addEventListener("keydown", (e) => {
+        let next;
+        if (e.key === "ArrowRight") next = tabs[(i + 1) % tabs.length];
+        else if (e.key === "ArrowLeft") next = tabs[(i - 1 + tabs.length) % tabs.length];
+        else if (e.key === "Home") next = tabs[0];
+        else if (e.key === "End") next = tabs[tabs.length - 1];
+        if (next) { e.preventDefault(); selectTab(next); next.focus(); }
+      });
+    });
+
+    /* ---------- init ---------- */
+    const saved = loadState();
+    if (saved) {
+      if (saved.root) rootInput.value = saved.root;
+      if (saved.vwMin) vwMin.value = saved.vwMin;
+      if (saved.vwMax) vwMax.value = saved.vwMax;
+      if (saved.varName) varsName.value = saved.varName;
+    }
+    ROOT = parseFloat(rootInput.value) || 16;
+
+    setLhOn(saved && saved.lhOn === true);    // restore line-height toggle
+    setVarsOn(saved && saved.varsOn === true); // restore CSS variables toggle
+    updateLS();
+    updateLHU();
+    updateClamp();
+  </script>
+</body>
+</html>
