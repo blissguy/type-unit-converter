@@ -546,12 +546,12 @@
           <div class="field">
             <label class="field__label" for="vars-name">Variable name</label>
             <div class="field__input-row">
-              <input class="field__input field__input--name" id="vars-name" type="text" value="{min}px-to-{max}px" spellcheck="false" autocomplete="off">
+              <input class="field__input field__input--name" id="vars-name" type="text" value="{max}px-to-{min}px" spellcheck="false" autocomplete="off">
             </div>
-            <p class="field__hint">Use <code>{min}</code> and <code>{max}</code> as placeholders for the font sizes. Line-height gets a <code>-line-height</code> suffix.</p>
+            <p class="field__hint">Use <code>{min}</code> and <code>{max}</code> as placeholders for the font sizes — the default names desktop-first (largest size leading). Line-height gets a <code>-line-height</code> suffix.</p>
           </div>
           <div class="vars__output">
-            <pre class="vars__code"><code id="vars-code">--18px-to-28px: ...;</code></pre>
+            <pre class="vars__code"><code id="vars-code">--28px-to-18px: ...;</code></pre>
             <button class="copy-btn" type="button" data-copy="vars">Copy variables</button>
           </div>
         </div>
@@ -969,7 +969,8 @@
       if (saved.root) rootInput.value = saved.root;
       if (saved.vwMin) vwMin.value = saved.vwMin;
       if (saved.vwMax) vwMax.value = saved.vwMax;
-      if (saved.varName) varsName.value = saved.varName;
+      // ignore the pre-desktop-first default so existing visitors pick up the new template
+      if (saved.varName && saved.varName !== "{min}px-to-{max}px") varsName.value = saved.varName;
     }
     ROOT = parseFloat(rootInput.value) || 16;
 
