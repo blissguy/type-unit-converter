@@ -15,6 +15,7 @@ function saveState() {
       vwMin: vwMin.value,
       vwMax: vwMax.value,
       lhOn: lhOn,
+      lhUnit: lhUnit,
       varsOn: varsOn,
       varName: document.getElementById("vars-name").value,
     }));
@@ -82,8 +83,63 @@ const clPreview = document.getElementById("cl-preview");
 const lhToggle = document.getElementById("lh-toggle");
 const lhInputs = document.getElementById("lh-inputs");
 const lhResult = document.getElementById("lh-result");
+const clLhUnitSelect = document.getElementById("cl-lh-unit");
+const clMaxLhUnit = document.getElementById("cl-max-lh-unit");
+const clMinLhUnit = document.getElementById("cl-min-lh-unit");
+const clMaxLhHint = document.getElementById("cl-max-lh-hint");
+const clMinLhHint = document.getElementById("cl-min-lh-hint");
 
 let lhOn = false;
+let lhUnit = "unitless";
+
+const LH_UNITS = {
+  unitless: { suffix: "×", step: "0.05", hint: "Ratio at the %s viewport." },
+  px: { suffix: "px", step: "0.5", hint: "Leading in px at the %s viewport." },
+  percent: { suffix: "%", step: "1", hint: "% of font size at the %s viewport." },
+};
+
+/* line-height value <-> px leading, relative to the font size at that end */
+function lhToPx(value, unit, fontPx) {
+  if (unit === "px") return value;
+  if (unit === "percent") return (value / 100) * fontPx;
+  return value * fontPx;
+}
+function lhFromPx(px, unit, fontPx) {
+  if (unit === "px") return px;
+  if (unit === "percent") return (px / fontPx) * 100;
+  return px / fontPx;
+}
+
+/* switch input unit; convert the current values so the generated CSS is unchanged */
+function setLhUnit(newUnit, convert) {
+  if (!LH_UNITS[newUnit]) newUnit = "unitless";
+  if (convert && newUnit !== lhUnit) {
+    [[clMaxLh, clMaxSize], [clMinLh, clMinSize]].forEach(([lhEl, fsEl]) => {
+      const px = lhToPx(parseFloat(lhEl.value), lhUnit, parseFloat(fsEl.value));
+      const converted = lhFromPx(px, newUnit, parseFloat(fsEl.value));
+      if (isFinite(converted)) lhEl.value = fmt(converted);
+    });
+  }
+  lhUnit = newUnit;
+  clLhUnitSelect.value = newUnit;
+  const meta = LH_UNITS[newUnit];
+  clMaxLhUnit.textContent = meta.suffix;
+  clMinLhUnit.textContent = meta.suffix;
+  clMaxLh.step = meta.step;
+  clMinLh.step = meta.step;
+  clMaxLhHint.textContent = meta.hint.replace("%s", "largest");
+  clMinLhHint.textContent = meta.hint.replace("%s", "smallest");
+  updateClamp();
+}
+
+clLhUnitSelect.addEventListener("change", () => {
+  setLhUnit(clLhUnitSelect.value, true);
+  saveState();
+});
+
+/* px endpoints currently driving the preview (null = invalid input) */
+let previewFs = null;
+let previewLh = null;
 
 function updateClamp() {
   const minFs = parseFloat(clMinSize.value);
@@ -93,37 +149,70 @@ function updateClamp() {
   if (!fontClamp) {
     clOutput.textContent = "—";
     clSub.textContent = "check font sizes and viewport range";
-    clPreview.style.removeProperty("font-size");
+    previewFs = null;
   } else {
     clOutput.textContent = fontClamp;
     clSub.textContent = `${fmt(maxFs)}px → ${fmt(minFs)}px`;
     copyValues.cl = fontClamp;
-    clPreview.style.fontSize = fontClamp;
+    previewFs = { min: minFs, max: maxFs };
   }
 
+  previewLh = null;
   if (lhOn) {
     const minLh = parseFloat(clMinLh.value);
     const maxLh = parseFloat(clMaxLh.value);
-    const minLhPx = minLh * minFs;
-    const maxLhPx = maxLh * maxFs;
-    const lhClamp = (isNaN(minLh) || isNaN(maxLh)) ? null : buildClamp(minLhPx, maxLhPx);
+    const minLhPx = lhToPx(minLh, lhUnit, minFs);
+    const maxLhPx = lhToPx(maxLh, lhUnit, maxFs);
+    const lhClamp = (isNaN(minLhPx) || isNaN(maxLhPx)) ? null : buildClamp(minLhPx, maxLhPx);
 
     if (!lhClamp) {
       lhcOutput.textContent = "—";
-      lhcSub.textContent = "check line-height ratios";
-      clPreview.style.removeProperty("line-height");
+      lhcSub.textContent = "check line-height values";
     } else {
       lhcOutput.textContent = lhClamp;
       lhcSub.textContent = `${fmt(maxLhPx)}px → ${fmt(minLhPx)}px leading`;
       copyValues.lhc = lhClamp;
-      clPreview.style.lineHeight = lhClamp;
+      previewLh = { min: minLhPx, max: maxLhPx };
     }
-  } else {
-    clPreview.style.removeProperty("line-height");
   }
 
   updateVars();
+  updateSim();
 }
+
+/* ---------- resizable preview: container width simulates the viewport ---------- */
+const clResize = document.getElementById("cl-resize");
+const clSim = document.getElementById("cl-sim");
+const SIM_MIN_W = 224; /* keep in sync with .preview__resize min-width (14rem) */
+
+function updateSim() {
+  if (!previewFs) {
+    clSim.textContent = "the viewport";
+    clPreview.style.removeProperty("font-size");
+    clPreview.style.removeProperty("line-height");
+    return;
+  }
+
+  /* map the container's drag range onto the viewport range, narrowest = min viewport */
+  const maxW = clResize.parentElement.clientWidth;
+  const minW = Math.min(SIM_MIN_W, maxW);
+  const t = maxW > minW
+    ? Math.max(0, Math.min(1, (clResize.offsetWidth - minW) / (maxW - minW)))
+    : 1;
+
+  const simVw = parseFloat(vwMin.value) + t * (parseFloat(vwMax.value) - parseFloat(vwMin.value));
+  clSim.textContent = `a ${Math.round(simVw)}px viewport`;
+
+  clPreview.style.fontSize = `${fmt(previewFs.min + t * (previewFs.max - previewFs.min))}px`;
+  if (previewLh) {
+    clPreview.style.lineHeight = `${fmt(previewLh.min + t * (previewLh.max - previewLh.min))}px`;
+  } else {
+    clPreview.style.removeProperty("line-height");
+  }
+}
+
+new ResizeObserver(updateSim).observe(clResize);
+window.addEventListener("resize", updateSim);
 
 function setLhOn(on) {
   lhOn = on;
@@ -304,6 +393,8 @@ if (saved) {
 }
 ROOT = parseFloat(rootInput.value) || 16;
 
+// restore the line-height unit, converting the default ratio values into it
+if (saved && saved.lhUnit && saved.lhUnit !== "unitless") setLhUnit(saved.lhUnit, true);
 setLhOn(saved && saved.lhOn === true);    // restore line-height toggle
 setVarsOn(saved && saved.varsOn === true); // restore CSS variables toggle
 updateLS();

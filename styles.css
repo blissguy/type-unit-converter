@@ -393,6 +393,21 @@ h1, h2 { font-family: var(--heading-font-family); font-weight: 600; }
 
 .preview__note { font-size: var(--text-xs); color: var(--secondary); }
 
+.preview__sim { color: var(--primary); font-variant-numeric: tabular-nums; }
+
+.preview__resize {
+  resize: horizontal;
+  overflow: hidden;
+  min-width: min(14rem, 100%);
+  max-width: 100%;
+  /* room so the editable text's focus outline isn't clipped by overflow: hidden */
+  padding: calc(var(--focus-width) + var(--focus-offset));
+  background-image: linear-gradient(135deg, transparent 50%, oklch(from var(--primary) l c h / 0.6) 50%);
+  background-repeat: no-repeat;
+  background-position: bottom right;
+  background-size: 11px 11px;
+}
+
 .preview__text {
   font-family: var(--heading-font-family);
   color: var(--neutral);
