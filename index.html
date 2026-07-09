@@ -78,18 +78,28 @@
             <label class="field__label" for="cl-max-lh">Max line-height</label>
             <div class="field__input-row">
               <input class="field__input" id="cl-max-lh" type="number" value="1.3" step="0.05" min="0" inputmode="decimal">
-              <span class="field__unit">×</span>
+              <span class="field__unit" id="cl-max-lh-unit">×</span>
             </div>
-            <p class="field__hint">Ratio at the largest viewport.</p>
+            <p class="field__hint" id="cl-max-lh-hint">Ratio at the largest viewport.</p>
           </div>
 
           <div class="field">
             <label class="field__label" for="cl-min-lh">Min line-height</label>
             <div class="field__input-row">
               <input class="field__input" id="cl-min-lh" type="number" value="1.5" step="0.05" min="0" inputmode="decimal">
-              <span class="field__unit">×</span>
+              <span class="field__unit" id="cl-min-lh-unit">×</span>
             </div>
-            <p class="field__hint">Ratio at the smallest viewport.</p>
+            <p class="field__hint" id="cl-min-lh-hint">Ratio at the smallest viewport.</p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="cl-lh-unit">Line-height unit</label>
+            <select class="field__select" id="cl-lh-unit">
+              <option value="unitless" selected>unitless (ratio)</option>
+              <option value="px">px</option>
+              <option value="percent">% (percentage)</option>
+            </select>
+            <p class="field__hint">The values above convert when you switch, so the output stays the same.</p>
           </div>
         </div>
 
@@ -133,13 +143,15 @@
         <div class="preview">
           <div class="preview__head">
             <h2 class="preview__label">Live preview <span class="visually-hidden">(editable)</span></h2>
-            <span class="preview__note">resize the window to see it scale</span>
+            <span class="preview__note">drag the corner to simulate <span class="preview__sim" id="cl-sim">the viewport</span></span>
           </div>
-          <p class="preview__text" id="cl-preview" contenteditable="true" spellcheck="false">Fluid type flexes with the viewport. Edit this paragraph and drag the window wider or narrower to watch the size, and the leading once enabled, respond across these wrapped lines.</p>
+          <div class="preview__resize" id="cl-resize">
+            <p class="preview__text" id="cl-preview" contenteditable="true" spellcheck="false">Fluid type flexes with the viewport. Edit this paragraph and drag the corner handle narrower or wider to watch the size, and the leading once enabled, respond across these wrapped lines.</p>
+          </div>
         </div>
 
         <p class="footnote">
-          font-size uses <code>clamp(min, preferred, max)</code> with sizes in <code>rem</code> and the slope in <code>vw</code>, so it stays zoom-friendly. Line-height resolves to a <code>rem</code> length (ratio × font size at each end), because unitless line-height can’t live inside <code>clamp()</code>. Both share the viewport range and root size set above.
+          font-size uses <code>clamp(min, preferred, max)</code> with sizes in <code>rem</code> and the slope in <code>vw</code>, so it stays zoom-friendly. Line-height can be entered as a unitless ratio, <code>px</code>, or <code>%</code> — whichever you pick, it resolves to a <code>rem</code> length at each end, because unitless line-height can’t live inside <code>clamp()</code>. Both share the viewport range and root size set above.
         </p>
       </section>
 
