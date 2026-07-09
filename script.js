@@ -16,6 +16,8 @@ function saveState() {
       vwMax: vwMax.value,
       lhOn: lhOn,
       lhUnit: lhUnit,
+      lhMax: clMaxLh.value,
+      lhMin: clMinLh.value,
       varsOn: varsOn,
       varName: document.getElementById("vars-name").value,
     }));
@@ -226,8 +228,11 @@ function setLhOn(on) {
 }
 
 lhToggle.addEventListener("click", () => { setLhOn(!lhOn); saveState(); });
-[clMinSize, clMaxSize, clMinLh, clMaxLh].forEach((el) =>
+[clMinSize, clMaxSize].forEach((el) =>
   el.addEventListener("input", updateClamp)
+);
+[clMinLh, clMaxLh].forEach((el) =>
+  el.addEventListener("input", () => { updateClamp(); saveState(); })
 );
 
 /* ---------- CSS variables output ---------- */
@@ -393,8 +398,14 @@ if (saved) {
 }
 ROOT = parseFloat(rootInput.value) || 16;
 
-// restore the line-height unit, converting the default ratio values into it
-if (saved && saved.lhUnit && saved.lhUnit !== "unitless") setLhUnit(saved.lhUnit, true);
+// restore the line-height values and unit; only convert the default ratios
+// into the saved unit when the values themselves weren't saved (older state)
+const hasSavedLh = saved && saved.lhMax != null && saved.lhMin != null;
+if (hasSavedLh) {
+  clMaxLh.value = saved.lhMax;
+  clMinLh.value = saved.lhMin;
+}
+if (saved && saved.lhUnit && saved.lhUnit !== "unitless") setLhUnit(saved.lhUnit, !hasSavedLh);
 setLhOn(saved && saved.lhOn === true);    // restore line-height toggle
 setVarsOn(saved && saved.varsOn === true); // restore CSS variables toggle
 updateLS();
