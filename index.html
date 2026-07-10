@@ -48,6 +48,7 @@
 
       <!-- ============ Fluid clamp (font-size + optional line-height) ============ -->
       <section class="tabs__panel" role="tabpanel" id="panel-cl" aria-labelledby="tab-cl" tabindex="0">
+        <div class="panel__main">
         <div class="controls" aria-label="Font size inputs">
           <div class="field">
             <label class="field__label" for="cl-max-size">Max font size</label>
@@ -140,6 +141,12 @@
           </div>
         </div>
 
+        <p class="footnote">
+          font-size uses <code>clamp(min, preferred, max)</code> with sizes in <code>rem</code> and the slope in <code>vw</code>, so it stays zoom-friendly. Line-height can be entered as a unitless ratio, <code>px</code>, or <code>%</code> — whichever you pick, it resolves to a <code>rem</code> length at each end, because unitless line-height can’t live inside <code>clamp()</code>. Both share the viewport range and root size set above.
+        </p>
+        </div>
+
+        <aside class="panel__aside" aria-label="Preview and history">
         <div class="preview">
           <div class="preview__head">
             <h2 class="preview__label">Live preview <span class="visually-hidden">(editable)</span></h2>
@@ -149,10 +156,6 @@
             <p class="preview__text" id="cl-preview" contenteditable="true" spellcheck="false">Fluid type flexes with the viewport. Edit this paragraph and drag the corner handle narrower or wider to watch the size, and the leading once enabled, respond across these wrapped lines.</p>
           </div>
         </div>
-
-        <p class="footnote">
-          font-size uses <code>clamp(min, preferred, max)</code> with sizes in <code>rem</code> and the slope in <code>vw</code>, so it stays zoom-friendly. Line-height can be entered as a unitless ratio, <code>px</code>, or <code>%</code> — whichever you pick, it resolves to a <code>rem</code> length at each end, because unitless line-height can’t live inside <code>clamp()</code>. Both share the viewport range and root size set above.
-        </p>
 
         <section class="history" aria-label="Calculation history">
           <div class="history__head">
@@ -167,10 +170,12 @@
           </div>
           <ol class="history__list" id="history-list" aria-live="polite"></ol>
         </section>
+        </aside>
       </section>
 
       <!-- ============ Letter spacing ============ -->
       <section class="tabs__panel" role="tabpanel" id="panel-ls" aria-labelledby="tab-ls" tabindex="0" hidden>
+        <div class="panel__main">
         <div class="controls" aria-label="Letter spacing inputs">
           <div class="field">
             <label class="field__label" for="ls-value">Letter spacing</label>
@@ -200,6 +205,12 @@
           <button class="copy-btn" type="button" data-copy="ls">Copy</button>
         </div>
 
+        <p class="footnote">
+          <code>em = px ÷ font-size</code>. Prefer <code>em</code> over <code>rem</code> for tracking so it scales with the element’s own size. <code>letter-spacing</code> has no truly unitless value, so <code>em</code> is the relative unit.
+        </p>
+        </div>
+
+        <aside class="panel__aside" aria-label="Preview">
         <div class="preview">
           <div class="preview__head">
             <h2 class="preview__label">Live preview <span class="visually-hidden">(editable)</span></h2>
@@ -207,14 +218,12 @@
           </div>
           <p class="preview__text" id="ls-preview" contenteditable="true" spellcheck="false">Typography that breathes</p>
         </div>
-
-        <p class="footnote">
-          <code>em = px ÷ font-size</code>. Prefer <code>em</code> over <code>rem</code> for tracking so it scales with the element’s own size. <code>letter-spacing</code> has no truly unitless value, so <code>em</code> is the relative unit.
-        </p>
+        </aside>
       </section>
 
       <!-- ============ Line height (unitless) ============ -->
       <section class="tabs__panel" role="tabpanel" id="panel-lh" aria-labelledby="tab-lh" tabindex="0" hidden>
+        <div class="panel__main">
         <div class="controls" aria-label="Line height inputs">
           <div class="field">
             <label class="field__label" for="lh-value">Line height</label>
@@ -252,6 +261,12 @@
           <button class="copy-btn" type="button" data-copy="lhu">Copy</button>
         </div>
 
+        <p class="footnote">
+          <code>unitless = % ÷ 100</code>, or <code>px ÷ font-size</code>. A unitless <code>line-height</code> is the multiplier of each element’s own font size, the recommended default, since child elements inherit the ratio rather than a fixed value.
+        </p>
+        </div>
+
+        <aside class="panel__aside" aria-label="Preview">
         <div class="preview">
           <div class="preview__head">
             <h2 class="preview__label">Live preview <span class="visually-hidden">(editable)</span></h2>
@@ -259,10 +274,7 @@
           </div>
           <p class="preview__text" id="lhu-preview" contenteditable="true" spellcheck="false" style="font-size: 1.05rem;">Leading sets the rhythm between lines. Edit this paragraph and watch the spacing open up or tighten as the unitless value changes across multiple wrapped lines of running text.</p>
         </div>
-
-        <p class="footnote">
-          <code>unitless = % ÷ 100</code>, or <code>px ÷ font-size</code>. A unitless <code>line-height</code> is the multiplier of each element’s own font size, the recommended default, since child elements inherit the ratio rather than a fixed value.
-        </p>
+        </aside>
       </section>
     </div>
   </main>

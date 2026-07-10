@@ -24,7 +24,7 @@
   --space-l: 2rem;
   --space-xl: 3rem;
 
-  --content-width: 44rem;
+  --content-width: 76rem;
   --radius: 0.6rem;
   --transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
   --focus-width: 2px;
@@ -171,6 +171,25 @@ h1, h2 { font-family: var(--heading-font-family); font-weight: 600; }
 }
 
 .tabs__panel[hidden] { display: none; }
+
+/* wide screens: inputs left, preview + history in a sticky right sidebar */
+@container app (min-width: 64rem) {
+  .tabs__panel:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
+    gap: var(--space-l);
+    align-items: start;
+  }
+
+  .panel__aside {
+    position: sticky;
+    top: var(--space-m);
+    max-height: calc(100dvh - var(--space-l));
+    overflow-y: auto;
+  }
+
+  .panel__aside .preview { margin-block-start: 0; }
+}
 
 /* ========================================
    Controls
