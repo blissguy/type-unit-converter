@@ -153,6 +153,20 @@
         <p class="footnote">
           font-size uses <code>clamp(min, preferred, max)</code> with sizes in <code>rem</code> and the slope in <code>vw</code>, so it stays zoom-friendly. Line-height can be entered as a unitless ratio, <code>px</code>, or <code>%</code> — whichever you pick, it resolves to a <code>rem</code> length at each end, because unitless line-height can’t live inside <code>clamp()</code>. Both share the viewport range and root size set above.
         </p>
+
+        <section class="history" aria-label="Calculation history">
+          <div class="history__head">
+            <h2 class="history__label">History</h2>
+            <label class="history__recalc">
+              <input class="history__checkbox" type="checkbox" id="history-recalc"> apply current settings
+            </label>
+            <span class="history__actions">
+              <button class="history__btn" id="history-save" type="button">Save current</button>
+              <button class="history__btn history__btn--quiet" id="history-clear" type="button">Clear all</button>
+            </span>
+          </div>
+          <ol class="history__list" id="history-list" aria-live="polite"></ol>
+        </section>
       </section>
 
       <!-- ============ Letter spacing ============ -->
