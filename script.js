@@ -22,6 +22,7 @@ function saveState() {
       lhMin: clMinLh.value,
       varsOn: varsOn,
       varName: document.getElementById("vars-name").value,
+      histRecalc: historyRecalc.checked,
     }));
   } catch (e) { /* storage unavailable, skip */ }
 }
@@ -47,6 +48,8 @@ async function writeClipboard(text) {
 document.querySelectorAll(".copy-btn").forEach((btn) => {
   btn.addEventListener("click", async () => {
     await writeClipboard(copyValues[btn.dataset.copy] || "");
+    // copying a fluid clamp value means it was used — snapshot it into history
+    if (["cl", "lhc", "vars"].includes(btn.dataset.copy)) addHistoryEntry();
     const original = btn.textContent;
     btn.textContent = "Copied ✓";
     btn.classList.add("copy-btn--copied");
@@ -57,14 +60,17 @@ document.querySelectorAll(".copy-btn").forEach((btn) => {
   });
 });
 
-/* build a fluid clamp() from two px endpoints using global viewports + root */
-function buildClamp(minPx, maxPx) {
-  const minVw = parseFloat(vwMin.value);
-  const maxVw = parseFloat(vwMax.value);
-  if ([minPx, maxPx, minVw, maxVw].some(isNaN) || minVw === maxVw) return null;
+function currentSettings() {
+  return { root: ROOT, minVw: parseFloat(vwMin.value), maxVw: parseFloat(vwMax.value) };
+}
 
-  const a = minPx / ROOT, b = maxPx / ROOT;
-  const va = minVw / ROOT, vb = maxVw / ROOT;
+/* build a fluid clamp() from two px endpoints; settings default to the globals */
+function buildClamp(minPx, maxPx, s = currentSettings()) {
+  const { root, minVw, maxVw } = s;
+  if ([minPx, maxPx, minVw, maxVw, root].some(isNaN) || minVw === maxVw || root <= 0) return null;
+
+  const a = minPx / root, b = maxPx / root;
+  const va = minVw / root, vb = maxVw / root;
   const slope = (b - a) / (vb - va);
   const intersect = a - slope * va;
   const slopeVw = slope * 100;
@@ -242,14 +248,16 @@ const varsCode = document.getElementById("vars-code");
 
 let varsOn = false;
 
-function buildVarName() {
-  const min = clMinSize.value.trim();
-  const max = clMaxSize.value.trim();
-  let name = (varsName.value || "").trim() || "fluid-size";
-  name = name.replace(/\{min\}/g, min).replace(/\{max\}/g, max);
+function buildVarNameFrom(template, min, max) {
+  let name = (template || "").trim() || "fluid-size";
+  name = name.replace(/\{min\}/g, (min || "").trim()).replace(/\{max\}/g, (max || "").trim());
   // keep it a sane custom-property ident: spaces to dashes, drop unsafe chars
   name = name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9\-_]/g, "");
   return name || "fluid-size";
+}
+
+function buildVarName() {
+  return buildVarNameFrom(varsName.value, clMinSize.value, clMaxSize.value);
 }
 
 function updateVars() {
@@ -281,6 +289,175 @@ function setVarsOn(on) {
 
 varsToggle.addEventListener("click", () => { setVarsOn(!varsOn); saveState(); });
 varsName.addEventListener("input", () => { updateVars(); saveState(); });
+
+/* ---------- calculation history ---------- */
+const HISTORY_KEY = "type-unit-converter:history:v1";
+const HISTORY_MAX = 50;
+const historyList = document.getElementById("history-list");
+const historyRecalc = document.getElementById("history-recalc");
+
+let historyEntries = [];
+let historyIdCounter = 0;
+
+function loadHistory() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(HISTORY_KEY));
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+function persistHistory() {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(historyEntries)); } catch (e) {}
+}
+
+/* entries store inputs + the globals they were made under; outputs are
+   always recomputed, so the "apply current settings" toggle is free */
+function currentEntry() {
+  return {
+    id: `${Date.now()}-${historyIdCounter++}`,
+    ts: Date.now(),
+    root: rootInput.value, vwMin: vwMin.value, vwMax: vwMax.value,
+    fsMax: clMaxSize.value, fsMin: clMinSize.value,
+    lhOn: lhOn, lhUnit: lhUnit, lhMax: clMaxLh.value, lhMin: clMinLh.value,
+    varsOn: varsOn, varName: varsName.value,
+  };
+}
+
+function entryKey(entry) {
+  const { id, ts, ...inputs } = entry;
+  return JSON.stringify(inputs);
+}
+
+function entrySettings(entry) {
+  return { root: parseFloat(entry.root), minVw: parseFloat(entry.vwMin), maxVw: parseFloat(entry.vwMax) };
+}
+
+function computeEntryOutputs(entry, s) {
+  const minFs = parseFloat(entry.fsMin);
+  const maxFs = parseFloat(entry.fsMax);
+  const fontClamp = buildClamp(minFs, maxFs, s);
+  let lhClamp = null;
+  if (entry.lhOn) {
+    const minLhPx = lhToPx(parseFloat(entry.lhMin), entry.lhUnit, minFs);
+    const maxLhPx = lhToPx(parseFloat(entry.lhMax), entry.lhUnit, maxFs);
+    if (!isNaN(minLhPx) && !isNaN(maxLhPx)) lhClamp = buildClamp(minLhPx, maxLhPx, s);
+  }
+  let varsLines = null;
+  if (entry.varsOn && fontClamp) {
+    const name = buildVarNameFrom(entry.varName, entry.fsMin, entry.fsMax);
+    varsLines = [`--${name}: ${fontClamp};`];
+    if (lhClamp) varsLines.push(`--${name}-line-height: ${lhClamp};`);
+  }
+  return { fontClamp, lhClamp, varsLines };
+}
+
+function addHistoryEntry() {
+  if (!clOutput.textContent.startsWith("clamp")) return;
+  const entry = currentEntry();
+  if (historyEntries.length && entryKey(historyEntries[0]) === entryKey(entry)) return;
+  historyEntries.unshift(entry);
+  if (historyEntries.length > HISTORY_MAX) historyEntries.length = HISTORY_MAX;
+  persistHistory();
+  renderHistory();
+}
+
+function relTime(ts) {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "just now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+function restoreEntry(entry) {
+  if (!historyRecalc.checked) {
+    // reproduce the exact original output: bring back its globals too
+    rootInput.value = entry.root;
+    vwMin.value = entry.vwMin;
+    vwMax.value = entry.vwMax;
+    ROOT = parseFloat(rootInput.value) || 16;
+    updateLS();
+  }
+  clMaxSize.value = entry.fsMax;
+  clMinSize.value = entry.fsMin;
+  clMaxLh.value = entry.lhMax;
+  clMinLh.value = entry.lhMin;
+  setLhUnit(entry.lhUnit, false); // stored values are already in this unit
+  varsName.value = entry.varName;
+  setLhOn(entry.lhOn === true);
+  setVarsOn(entry.varsOn === true);
+  saveState();
+}
+
+function renderHistory() {
+  historyList.textContent = "";
+
+  if (!historyEntries.length) {
+    const li = document.createElement("li");
+    li.className = "history__empty";
+    li.textContent = "Copy or save a calculation and it will appear here.";
+    historyList.appendChild(li);
+    return;
+  }
+
+  const useCurrent = historyRecalc.checked;
+  historyEntries.forEach((entry) => {
+    const out = computeEntryOutputs(entry, useCurrent ? currentSettings() : entrySettings(entry));
+
+    const summary = document.createElement("span");
+    const lhSuffix = (LH_UNITS[entry.lhUnit] || LH_UNITS.unitless).suffix;
+    summary.textContent =
+      `${entry.fsMax}px → ${entry.fsMin}px` +
+      (entry.lhOn ? ` · lh ${entry.lhMax}${lhSuffix} → ${entry.lhMin}${lhSuffix}` : "") +
+      ` · root ${entry.root}px · vw ${entry.vwMax}–${entry.vwMin}`;
+
+    const time = document.createElement("span");
+    time.className = "history__time";
+    time.textContent = relTime(entry.ts);
+
+    const meta = document.createElement("span");
+    meta.className = "history__meta";
+    meta.append(summary, time);
+
+    const code = document.createElement("span");
+    code.className = "history__code";
+    const lines = out.varsLines || [
+      `font-size: ${out.fontClamp || "—"};`,
+      ...(entry.lhOn ? [`line-height: ${out.lhClamp || "—"};`] : []),
+    ];
+    code.textContent = lines.join("\n");
+
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "history__entry";
+    row.title = `Restore — saved ${new Date(entry.ts).toLocaleString()}`;
+    row.append(meta, code);
+    row.addEventListener("click", () => restoreEntry(entry));
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "history__delete";
+    del.setAttribute("aria-label", "Delete history entry");
+    del.textContent = "×";
+    del.addEventListener("click", () => {
+      historyEntries = historyEntries.filter((e) => e.id !== entry.id);
+      persistHistory();
+      renderHistory();
+    });
+
+    const li = document.createElement("li");
+    li.className = "history__item";
+    li.append(row, del);
+    historyList.appendChild(li);
+  });
+}
+
+historyRecalc.addEventListener("change", () => { renderHistory(); saveState(); });
+document.getElementById("history-save").addEventListener("click", addHistoryEntry);
+document.getElementById("history-clear").addEventListener("click", () => {
+  historyEntries = [];
+  persistHistory();
+  renderHistory();
+});
 
 /* ---------- letter spacing ---------- */
 const lsValue = document.getElementById("ls-value");
@@ -358,10 +535,15 @@ rootInput.addEventListener("input", () => {
   ROOT = parseFloat(rootInput.value) || 16;
   updateLS();
   updateClamp();
+  if (historyRecalc.checked) renderHistory();
   saveState();
 });
 [vwMin, vwMax].forEach((el) =>
-  el.addEventListener("input", () => { updateClamp(); saveState(); })
+  el.addEventListener("input", () => {
+    updateClamp();
+    if (historyRecalc.checked) renderHistory();
+    saveState();
+  })
 );
 
 /* ---------- tabs (ARIA pattern + arrow keys) ---------- */
@@ -407,8 +589,13 @@ if (hasSavedLh) {
   clMinLh.value = saved.lhMin;
 }
 if (saved && saved.lhUnit && saved.lhUnit !== "unitless") setLhUnit(saved.lhUnit, !hasSavedLh);
+historyRecalc.checked = !!(saved && saved.histRecalc === true);
+
 setLhOn(saved && saved.lhOn === true);    // restore line-height toggle
 setVarsOn(saved && saved.varsOn === true); // restore CSS variables toggle
 updateLS();
 updateLHU();
 updateClamp();
+
+historyEntries = loadHistory();
+renderHistory();
